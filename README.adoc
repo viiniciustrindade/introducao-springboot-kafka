@@ -22,7 +22,6 @@ Adicione o seguinte código no arquivo `application.properties`:
 
 [source,properties]
 ----
-spring.application.name=demo
 server.port=8081
 spring.kafka.bootstrap-servers=localhost:9092
 spring.kafka.consumer.group-id=1
