@@ -200,7 +200,7 @@ public class KafkaController {
 === Inicie a aplicação
 
 === Verificando os Tópicos
-Execute o seguinte comando:
+Execute o seguinte comando no terminal:
 
 [source,bash]
 ----
