@@ -1,0 +1,152 @@
+= Introdução ao Kafka
+
+== Adicionando as dependências ao seu projeto
+
+Adicione as seguintes dependências ao seu arquivo `pom.xml`:
+
+```xml
+<dependency>
+   <groupId>org.springframework.boot</groupId>
+   <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+<dependency>
+   <groupId>org.springframework.kafka</groupId>
+   <artifactId>spring-kafka</artifactId>
+</dependency>
+== Configurações no application.properties
+
+Adicione o seguinte código no arquivo application.properties:
+spring.application.name=demo
+server.port=8081
+spring.kafka.bootstrap-servers=localhost:9092
+spring.kafka.consumer.group-id=1
+== Criando o arquivo docker-compose.yml
+Crie um arquivo na pasta raiz do seu projeto chamado docker-compose.yml e cole o seguinte código no arquivo:
+version: '3.8'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+    networks:
+      - kafka-net
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092" 
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true" 
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - kafka-net
+
+networks:
+  kafka-net:
+    driver: bridge
+== Executando o Docker Compose
+
+Abra a pasta do seu projeto no terminal e execute o comando:
+docker-compose up -d
+Após finalizar, execute o comando a seguir para verificar se os containers foram criados:
+docker ps
+== Estrutura do Projeto
+
+No seu projeto, crie o pacote kafka e dentro dele os pacotes consumer, controller e producer.
+
+=== Pacote producer
+
+Dentro do pacote producer, crie as seguintes classes:
+
+KafkaProducerConfig.java
+@Configuration
+public class KafkaProducerConfig {
+   @Bean
+   public ProducerFactory<String,String> producersFactory() {
+       Map<String,Object> configProps = new HashMap<>();
+       configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,"localhost:9092");
+       configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,StringSerializer.class);
+       configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,StringSerializer.class);
+       return new DefaultKafkaProducerFactory<>(configProps);
+   }
+
+   @Bean
+   public KafkaTemplate<String,String> kafkaTemplate() {
+       return new KafkaTemplate<>(producersFactory());
+   }
+}
+MessageProducer.java
+package com.testekafka.demo.kafka.producer;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Component;
+
+@Component
+public class MessageProducer {
+   @Autowired
+   private KafkaTemplate<String, String> kafkaTemplate;
+
+   public void sendMessage(String topico, String mensagem) {
+       kafkaTemplate.send(topico, mensagem);
+   }
+}
+=== Pacote consumer
+
+Dentro do pacote consumer, crie a seguinte classe:
+
+KafkaConsumerConfig.java
+@Configuration
+@EnableKafka
+public class KafkaConsumerConfig {
+
+   @Bean
+   public ConsumerFactory<String, String> consumerFactory() {
+       Map<String, Object> configProps = new HashMap<>();
+       configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+       configProps.put(ConsumerConfig.GROUP_ID_CONFIG, "1");
+       configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+       configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+
+       return new DefaultKafkaConsumerFactory<>(configProps);
+   }
+
+   @Bean
+   public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory() {
+       ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+       factory.setConsumerFactory(consumerFactory());
+       return factory;
+   }
+}
+MessageConsumer.java
+@Component
+public class MessageConsumer {
+   @KafkaListener(topics = "lasteste", groupId = "1")
+   public void ouvir(String mensagem) {
+       System.out.println("Mensagem recebida: " + mensagem);
+   }
+}
+== Executando o Projeto
+
+Com o projeto iniciado, execute o seguinte comando no terminal:
+docker exec -it kafka kafka-topics --list --bootstrap-server kafka:9092
+Verifique se o tópico lasteste foi criado.
+
+== Testando a Aplicação
+
+Se o tópico foi criado, faça uma requisição POST no Postman para o seguinte endpoint:
+http://localhost:8081/send?message=teste
