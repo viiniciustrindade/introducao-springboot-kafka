@@ -169,7 +169,35 @@ public class MessageConsumer {
 }
 ----
 
+=== Pacote Controller
+
+==== KafkaController.java
+[source,java]
+----
+import com.teste.teste.producer.MessageProducer;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class KafkaController {
+
+    @Autowired
+    private MessageProducer messageProducer;
+
+    @PostMapping("/send")
+    public String sendMessage(@RequestParam("message") String message) {
+        messageProducer.sendMessage("my-topic", message);
+        return "Message sent: " + message;
+    }
+}
+
+----
+
 == Execução e Testes
+
+=== Inicie a aplicação
 
 === Verificando os Tópicos
 Execute o seguinte comando:
